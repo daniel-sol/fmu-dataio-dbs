@@ -844,9 +844,7 @@ class ExportData:
 
         obj = self._check_obj_if_file(obj)
         logger.info("Export to file and compute MD5 sum, using flag: <%s>", useflag)
-        outfile, md5 = export_file_compute_checksum_md5(
-            obj, outfile, outfile.suffix, flag=useflag
-        )
+        outfile, md5 = export_file_compute_checksum_md5(obj, outfile, flag=useflag)
         # inject md5 checksum in metadata
         metadata["file"]["checksum_md5"] = md5
         logger.info("Actual file is:   %s", outfile)
@@ -1425,7 +1423,7 @@ class AggregatedData:
         metafile = outfile.parent / ("." + str(outfile.name) + ".yml")
 
         logger.info("Export to file and compute MD5 sum")
-        outfile, md5 = export_file_compute_checksum_md5(obj, outfile, outfile.suffix)
+        outfile, md5 = export_file_compute_checksum_md5(obj, outfile)
 
         # inject the computed md5 checksum in metadata
         metadata["file"]["checksum_md5"] = md5

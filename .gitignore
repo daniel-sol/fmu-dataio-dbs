@@ -96,3 +96,6 @@ venv.bak/
 
 # setuptools_scm version
 src/fmu/dataio/version.py
+
+# sumo cached file
+tests/data/drogon/ertrun1/share/metadata/sumo_parent_id.yml

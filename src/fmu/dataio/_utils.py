@@ -1,4 +1,5 @@
 """Module for private utilities/helpers for DataIO class."""
+from io import BytesIO
 import hashlib
 import json
 import logging
@@ -15,6 +16,7 @@ from typing import Dict, List, Optional, Union
 import pandas as pd  # type: ignore
 import yaml
 from fmu.config import utilities as ut
+from sumo.wrapper import SumoClient
 
 try:
     import pyarrow as pa  # type: ignore
@@ -113,15 +115,18 @@ def export_metadata_file(yfile, metadata, savefmt="yaml", verbosity="WARNING") -
     logger.info("Yaml file on: %s", yfile)
 
 
-def export_file(obj, filename, extension, flag=None):
+def export_file(obj, filename, flag=None):
     """Export a valid object to file"""
-
+    try:
+        extension = filename.suffix
+    except AttributeError:
+        extension = "bytestream"
     if isinstance(obj, Path):
         # special case when processing data which already has metadata
         shutil.copy(obj, filename)
-    elif extension == ".gri" and isinstance(obj, xtgeo.RegularSurface):
+    elif isinstance(obj, xtgeo.RegularSurface):
         obj.to_file(filename, fformat="irap_binary")
-    elif extension == ".csv" and isinstance(obj, (xtgeo.Polygons, xtgeo.Points)):
+    elif isinstance(obj, (xtgeo.Polygons, xtgeo.Points)):
         out = obj.copy()  # to not modify incoming instance!
         if "xtgeo" not in flag:
             out.xname = "X"
@@ -131,16 +136,16 @@ def export_file(obj, filename, extension, flag=None):
                 # out.pname = "ID"  not working
                 out.dataframe.rename(columns={out.pname: "ID"}, inplace=True)
         out.dataframe.to_csv(filename, index=False)
-    elif extension == ".pol" and isinstance(obj, (xtgeo.Polygons, xtgeo.Points)):
+    elif isinstance(obj, (xtgeo.Polygons, xtgeo.Points)):
         obj.to_file(filename)
-    elif extension == ".segy" and isinstance(obj, xtgeo.Cube):
+    elif isinstance(obj, xtgeo.Cube):
         obj.to_file(filename, fformat="segy")
-    elif extension == ".roff" and isinstance(obj, (xtgeo.Grid, xtgeo.GridProperty)):
+    elif isinstance(obj, (xtgeo.Grid, xtgeo.GridProperty)):
         obj.to_file(filename, fformat="roff")
-    elif extension == ".csv" and isinstance(obj, pd.DataFrame):
+    elif isinstance(obj, pd.DataFrame):
         includeindex = True if flag == "include_index" else False
         obj.to_csv(filename, index=includeindex)
-    elif extension == ".arrow" and HAS_PYARROW and isinstance(obj, pa.Table):
+    elif HAS_PYARROW and isinstance(obj, pa.Table):
         # comment taken from equinor/webviz_subsurface/smry2arrow.py
 
         # Writing here is done through the feather import, but could also be done using
@@ -151,8 +156,23 @@ def export_file(obj, filename, extension, flag=None):
         feather.write_feather(obj, dest=filename)
     else:
         raise TypeError(f"Exporting {extension} for {type(obj)} is not supported")
+    if not isinstance(filename, BytesIO):
+        filename = str(filename)
 
-    return str(filename)
+    return filename
+
+
+def object_to_bytes(obj, flag=None):
+    """Export a valid object to bytesIO"""
+
+    stream = BytesIO()
+    try:
+        stream = export_file(obj, stream, flag)
+        # to return to start of stream
+        stream.seek(0)
+    except TypeError:
+        stream = None
+    return stream
 
 
 def md5sum(fname):
@@ -163,7 +183,7 @@ def md5sum(fname):
     return hash_md5.hexdigest()
 
 
-def export_file_compute_checksum_md5(obj, filename, extension, flag=None, tmp=False):
+def export_file_compute_checksum_md5(obj, filename, flag=None, tmp=False):
     """Export and compute checksum, with possibility to use a tmp file."""
 
     usefile = filename
@@ -171,7 +191,7 @@ def export_file_compute_checksum_md5(obj, filename, extension, flag=None, tmp=Fa
         tmpdir = tempfile.TemporaryDirectory()
         usefile = Path(tmpdir.name) / "tmpfile"
 
-    export_file(obj, usefile, extension, flag=flag)
+    export_file(obj, usefile, flag=flag)
     checksum = md5sum(usefile)
     if tmp:
         tmpdir.cleanup()
@@ -510,3 +530,30 @@ def parse_timedata(datablock: dict, isoformat=True):
             date1 = tdate1.datetime.strftime("%Y%m%d")
 
     return (date0, date1)
+
+
+def upload_to_sumo(sumo_env: str, parent_id: str, meta: dict, obj: BytesIO):
+    logger.debug("Uploading to parent with id %s", parent_id)
+    sumo = SumoClient(sumo_env)
+    path = f"/objects('{parent_id}')"
+    rsp_code = "0"
+    success_response = (200, 201)
+    while rsp_code not in success_response:
+        try:
+            response = sumo.post(path=path, json=meta)
+            rsp_code = response.status_code
+            logger.debug("response meta: %s", rsp_code)
+        except Exception:
+            exp_type, _, _ = sys.exc_info()
+            logger.debug("Exception %s while uploading metadata", str(exp_type))
+
+    blob_url = response.json().get("blob_url")
+    rsp_code = "0"
+    while rsp_code not in success_response:
+        try:
+            response = sumo.blob_client.upload_blob(blob=obj, url=blob_url)
+            rsp_code = response.status_code
+            logger.debug("Response blob %s", rsp_code)
+        except Exception:
+            exp_type, _, _ = sys.exc_info()
+            logger.debug("Exception %s while uploading metadata", str(exp_type))

@@ -22,6 +22,9 @@ masterdata:
 access:
   asset:
     name: Drogon # adding level to make room for unique ID in the future
+  ssdl:
+    access_level: internal
+    rep_include: true
 fmu:
   model:
     description:

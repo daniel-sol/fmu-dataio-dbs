@@ -18,7 +18,8 @@ from fmu.dataio._fmu_provider import _FmuProvider
 from fmu.dataio._objectdata_provider import _ObjectDataProvider
 from fmu.dataio._utils import (
     drop_nones,
-    export_file_compute_checksum_md5,
+    object_to_bytes,
+    md5sum_from_bytes,
     glue_metadata_preprocessed,
     read_metadata,
 )
@@ -300,14 +301,11 @@ class _MetaData:
             self.meta_file["absolute_path_symlink"] = fdata.absolute_path_symlink
 
         if self.compute_md5:
-            logger.info("Compute MD5 sum for tmp file...")
-            _, self.meta_file["checksum_md5"] = export_file_compute_checksum_md5(
-                self.obj,
-                "tmp",
-                self.objdata.extension,
-                tmp=True,
-                flag=self.dataio._usefmtflag,
+            logger.info("Compute MD5")
+            self.meta_file["checksum_md5"] = md5sum_from_bytes(
+                object_to_bytes(self.obj)
             )
+
         else:
             logger.info("Do not compute MD5 sum at this stage!")
             self.meta_file["checksum_md5"] = None

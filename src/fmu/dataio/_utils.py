@@ -1,4 +1,5 @@
 """Module for private utilities/helpers for DataIO class."""
+import sys
 from io import BytesIO
 import hashlib
 import json
@@ -176,11 +177,27 @@ def object_to_bytes(obj, flag=None):
 
 
 def md5sum(fname):
-    hash_md5 = hashlib.md5()
+    hash_md5 = None
     with open(fname, "rb") as fil:
-        for chunk in iter(lambda: fil.read(4096), b""):
-            hash_md5.update(chunk)
-    return hash_md5.hexdigest()
+        hash_md5 = md5sum_from_bytes(fil)
+    return hash_md5
+
+
+def md5sum_from_bytes(bytes_string: bytes) -> str:
+    """Make checksum from bytestring
+    args:
+    bytes_string (bytes): byte string
+    returns (str): checksum
+    """
+    # logger = init_logging(__name__ + ".md5sum")
+
+    hash_md5 = hashlib.md5()
+    for chunk in iter(lambda: bytes_string.read(4096), b""):
+        hash_md5.update(chunk)
+    checksum = hash_md5.hexdigest()
+    # logger.debug("Checksum %s", checksum)
+
+    return checksum
 
 
 def export_file_compute_checksum_md5(obj, filename, flag=None, tmp=False):
@@ -542,10 +559,13 @@ def upload_to_sumo(sumo_env: str, parent_id: str, meta: dict, obj: BytesIO):
         try:
             response = sumo.post(path=path, json=meta)
             rsp_code = response.status_code
-            logger.debug("response meta: %s", rsp_code)
+            # logger.debug("response meta: %s", rsp_code)
+            print("response meta: ", rsp_code)
+
         except Exception:
             exp_type, _, _ = sys.exc_info()
-            logger.debug("Exception %s while uploading metadata", str(exp_type))
+            # logger.debug("Exception %s while uploading metadata", str(exp_type))
+            print("Exception while uploading metadata: ", str(exp_type))
 
     blob_url = response.json().get("blob_url")
     rsp_code = "0"
@@ -553,7 +573,9 @@ def upload_to_sumo(sumo_env: str, parent_id: str, meta: dict, obj: BytesIO):
         try:
             response = sumo.blob_client.upload_blob(blob=obj, url=blob_url)
             rsp_code = response.status_code
-            logger.debug("Response blob %s", rsp_code)
+            # logger.debug("Response blob %s", rsp_code)
+            print("Response blob", rsp_code)
         except Exception:
             exp_type, _, _ = sys.exc_info()
-            logger.debug("Exception %s while uploading metadata", str(exp_type))
+            # logger.debug("Exception %s while uploading metadata", str(exp_type))
+            print("Exception while uploading object: ", str(exp_type))

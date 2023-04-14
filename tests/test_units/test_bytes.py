@@ -1,15 +1,16 @@
+import os
 from io import BytesIO
 import numpy as np
 import pandas as pd
 import pyarrow as pa
 from xtgeo import surface_from_file, gridproperty_from_file
-
 from pathlib import Path
 from fmu.dataio import ExportData
 from fmu.dataio._utils import object_to_bytes, upload_to_sumo
 from fmu.sumo.uploader import CaseOnDisk, SumoConnection
 from fmu.config.utilities import yaml_load
 import pytest
+import yaml
 
 FMU_RUN = Path(__file__).parent / "../data/drogon/ertrun1/"
 RESULTS = FMU_RUN / "realization-0/iter-0/share/results"
@@ -81,9 +82,12 @@ def test_failing_object_to_bytes():
 
 def test_upload(sumouuid):
     print(sumouuid)
-    config = yaml_load("tests/data/drogon/global_config2/global_variables.yml")
+    os.chdir(FMU_RUN / "realization-0/iter-0")
+    config = yaml_load(FMU_RUN / "../global_config2/global_variables.yml")
     exp = ExportData(config=config, name="banana")
     obj = pd.DataFrame({"tut": [1, 2, 3]})
     meta = exp.generate_metadata(obj)
     print(meta)
-    # upload_to_sumo("test", sumouuid, meta, object_to_bytes(obj))
+    with open("meta.yml", "w") as out:
+        yaml.dump(meta, out)
+    upload_to_sumo("test", sumouuid, meta, object_to_bytes(obj))

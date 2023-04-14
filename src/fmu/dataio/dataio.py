@@ -805,7 +805,7 @@ class ExportData:
         self._rootpath = Path(metaobj.rootpath)
 
         logger.info("The metadata are now ready!")
-
+        print("Her skjer det!")
         return deepcopy(self._metadata)
 
     def export(self, obj, return_symlink=False, **kwargs) -> str:

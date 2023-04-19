@@ -9,6 +9,7 @@ from fmu.dataio import ExportData
 from fmu.dataio._utils import object_to_bytes, upload_to_sumo
 from fmu.sumo.uploader import CaseOnDisk, SumoConnection
 from fmu.config.utilities import yaml_load
+from fmu.sumo.explorer import Explorer
 import pytest
 import yaml
 
@@ -80,7 +81,7 @@ def test_failing_object_to_bytes():
     assert stream is None, f"this should return None, but returns {obj}"
 
 
-def test_upload(sumouuid):
+def test_simple_upload(sumouuid):
     print(sumouuid)
     os.chdir(FMU_RUN / "realization-0/iter-0")
     config = yaml_load(FMU_RUN / "../global_config2/global_variables.yml")
@@ -91,3 +92,12 @@ def test_upload(sumouuid):
     with open("meta.yml", "w") as out:
         yaml.dump(meta, out)
     upload_to_sumo("test", sumouuid, meta, object_to_bytes(obj))
+
+    exp = Explorer("test")
+    case = exp.cases.filter(uuid=sumouuid)[0]
+
+    table = case.tables.filter(name="banana")[0]
+    sumo_obj = pd.read_csv(BytesIO(table.blob.read()))
+    print(sumo_obj)
+    # assert isinstance(sumo_obj, pd.DataFrame), f"Should be table, but is {type(table)}"
+    # assert obj.compare(sumo_obj).empty

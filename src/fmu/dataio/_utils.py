@@ -18,6 +18,7 @@ import pandas as pd  # type: ignore
 import yaml
 from fmu.config import utilities as ut
 from sumo.wrapper import SumoClient
+from sumo.wrapper._request_error import TransientError
 
 try:
     import pyarrow as pa  # type: ignore
@@ -550,6 +551,14 @@ def parse_timedata(datablock: dict, isoformat=True):
 
 
 def upload_to_sumo(sumo_env: str, parent_id: str, meta: dict, obj: BytesIO):
+    """Upload to sumo
+
+    Args:
+        sumo_env (str): what environment to upload to
+        parent_id (str): the uuid of the case
+        meta (dict): the metadata for the case
+        obj (BytesIO): the object to be uploaded
+    """
     logger.debug("Uploading to parent with id %s", parent_id)
     sumo = SumoClient(sumo_env)
     path = f"/objects('{parent_id}')"
@@ -559,23 +568,30 @@ def upload_to_sumo(sumo_env: str, parent_id: str, meta: dict, obj: BytesIO):
         try:
             response = sumo.post(path=path, json=meta)
             rsp_code = response.status_code
-            # logger.debug("response meta: %s", rsp_code)
-            print("response meta: ", rsp_code)
-
-        except Exception:
-            exp_type, _, _ = sys.exc_info()
-            # logger.debug("Exception %s while uploading metadata", str(exp_type))
-            print("Exception while uploading metadata: ", str(exp_type))
+            logger.debug("response meta: %s", rsp_code)
+        except TransientError:
+            logger.warning(
+                "You got code %s, something wrong with your metadata, refusing to upload",
+                rsp_code,
+            )
+            break
 
     blob_url = response.json().get("blob_url")
     rsp_code = "0"
+    count = 0
+    max_retries = 10
+    responses = set()
     while rsp_code not in success_response:
-        try:
-            response = sumo.blob_client.upload_blob(blob=obj, url=blob_url)
-            rsp_code = response.status_code
-            # logger.debug("Response blob %s", rsp_code)
-            print("Response blob", rsp_code)
-        except Exception:
-            exp_type, _, _ = sys.exc_info()
-            # logger.debug("Exception %s while uploading metadata", str(exp_type))
-            print("Exception while uploading object: ", str(exp_type))
+        response = sumo.blob_client.upload_blob(blob=bytes(obj.read()), url=blob_url)
+        rsp_code = response.status_code
+        logger.debug("Response blob %s", rsp_code)
+        count += 1
+        responses.add(rsp_code)
+        if count > max_retries:
+            logger.warning(
+                "Have tried %s times to upload, got these responses %s"
+                "seems about time to call it a day",
+                max_retries,
+                responses,
+            )
+            break

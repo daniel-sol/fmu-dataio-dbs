@@ -503,7 +503,7 @@ class _ObjectDataProvider:
         for index_name in table_index:
             if isinstance(self.obj, pd.DataFrame):
                 logger.debug("pandas")
-                index_values[index_name] = self.obj[index_name].unique()
+                index_values[index_name] = self.obj[index_name].unique().tolist()
             else:
                 logger.debug("arrow")
                 index_values[index_name] = pc.unique(

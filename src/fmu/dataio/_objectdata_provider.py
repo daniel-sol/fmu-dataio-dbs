@@ -515,6 +515,7 @@ class _ObjectDataProvider:
         """Derive table index"""
         # This could in the future also return context
         columns = self._get_columns()
+        logger.debug("Index going in: %s", self.dataio.table_index)
         index = []
 
         if self.dataio.table_index is None:
@@ -532,6 +533,7 @@ class _ObjectDataProvider:
         if "REAL" in columns:
             index.append("REAL")
         self._check_index(index)
+        logger.debug("Index exiting %s", index)
         return index
 
     def _check_index(self, index):
@@ -544,6 +546,7 @@ class _ObjectDataProvider:
         """
 
         not_founds = (item for item in index if item not in self._get_columns())
+        logger.debug("These are the not founds %s", not_founds)
         for not_found in not_founds:
             raise KeyError(f"{not_found} is not in table")
 

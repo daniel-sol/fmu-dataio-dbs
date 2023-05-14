@@ -1,6 +1,8 @@
 """Tests for table index
 """
 from pathlib import Path
+import json
+import pandas as pd
 import pyarrow as pa
 import pytest
 from fmu.dataio import ExportData
@@ -141,6 +143,46 @@ def test_table_index_real_summary(edataobj3, drogon_summary):
     objdata = _ObjectDataProvider(drogon_summary, edataobj3)
     res = objdata._derive_objectdata()
     assert res["table_index"] == ["DATE"], "Incorrect table index "
+
+
+def is_jsonable(x):
+    # stolen from
+    # https://stackoverflow.com/questions/42033142/is-there-an-easy-way-to-check-if-an-object-is-json-serializable-in-python
+    try:
+        json.dumps(x)
+        return True
+    except (TypeError, OverflowError):
+        return False
+
+
+def test_is_table_index_values_serializable_arrow(edataobj3, drogon_summary):
+    """Test setting of table_index in real summary file
+
+    Args:
+        edataobj3 (dict): metadata
+        drogon_summary (pd.Dataframe): dataframe with summary data from sumo
+    """
+    objdata = _ObjectDataProvider(drogon_summary, edataobj3)
+    res = objdata._derive_objectdata()
+    print(res["table_index_values"])
+    assert res["table_index_values"]["DATE"][0] == "2018-01-01"
+    assert is_jsonable(res)
+
+
+def test_is_table_index_values_serializable_pandas(edataobj3, drogon_summary):
+    """Test setting of table_index in real summary file
+
+    Args:
+        edataobj3 (dict): metadata
+        drogon_summary (pd.Dataframe): dataframe with summary data from sumo
+    """
+    pandas_summary = drogon_summary.to_pandas().reset_index()
+    print(pandas_summary)
+    objdata = _ObjectDataProvider(pandas_summary, edataobj3)
+    res = objdata._derive_objectdata()
+    print(res["table_index_values"])
+    assert res["table_index_values"]["DATE"][0] == "2018-01-01"
+    assert is_jsonable(res)
 
 
 def test_table_index_values_real_volumes(edataobj3, drogon_volumes):

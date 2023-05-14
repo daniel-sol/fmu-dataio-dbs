@@ -500,15 +500,34 @@ class _ObjectDataProvider:
     def _derive_values_from_index(self, table_index):
         """Get unique values in table_index columns"""
         index_values = {}
+        time_format = "%Y-%m-%d"
+        try:
+            datatype = "arrow"
+            schema = self.obj.schema
+            dtypes = dict(zip(schema.names, schema.types))
+
+        except AttributeError:
+            datatype = "pandas"
+            dtypes = self.obj.dtypes
+            time_instance = np.datetime64
+        print(datatype)
+        print(dtypes)
         for index_name in table_index:
-            if isinstance(self.obj, pd.DataFrame):
-                logger.debug("pandas")
-                index_values[index_name] = self.obj[index_name].unique().tolist()
+            print(dtypes[index_name])
+            if datatype == "arrow":
+                named_index = self.obj.column(index_name)
+                print(type(named_index))
+                if isinstance(dtypes[index_name], pa.TimestampType):
+                    print("Time")
+                    named_index = pc.strftime(named_index, time_format)
+                index_values[index_name] = pc.unique(named_index).tolist()
             else:
-                logger.debug("arrow")
-                index_values[index_name] = pc.unique(
-                    self.obj.column(index_name)
-                ).tolist()
+                named_index = self.obj[index_name]
+                if pd.api.types.is_datetime64_ns_dtype(self.obj[index_name]):
+                    print("Time")
+                    named_index = pd.to_datetime(named_index).dt.strftime(time_format)
+                index_values[index_name] = named_index.unique().tolist()
+
         return index_values
 
     def _derive_index(self):

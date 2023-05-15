@@ -509,23 +509,23 @@ class _ObjectDataProvider:
         except AttributeError:
             datatype = "pandas"
             dtypes = self.obj.dtypes
-            time_instance = np.datetime64
-        print(datatype)
-        print(dtypes)
         for index_name in table_index:
-            print(dtypes[index_name])
+            logger.debug("Column: %s, is of type %s", index_name, dtypes[index_name])
             if datatype == "arrow":
                 named_index = self.obj.column(index_name)
-                print(type(named_index))
+                logger.debug(type(named_index))
                 if isinstance(dtypes[index_name], pa.TimestampType):
-                    print("Time")
+                    print("Found time column in arrow table")
                     named_index = pc.strftime(named_index, time_format)
                 index_values[index_name] = pc.unique(named_index).tolist()
             else:
                 named_index = self.obj[index_name]
-                if pd.api.types.is_datetime64_ns_dtype(self.obj[index_name]):
-                    print("Time")
+                if index_name == "DATE":
+                    # if pd.api.types.is_datetime64_ns_dtype(self.obj[index_name]):
+                    # The line above is commented out for now
+
                     named_index = pd.to_datetime(named_index).dt.strftime(time_format)
+
                 index_values[index_name] = named_index.unique().tolist()
 
         return index_values

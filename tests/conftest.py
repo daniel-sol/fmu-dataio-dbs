@@ -475,11 +475,9 @@ def fixture_aggr_surfs_mean(fmurun_w_casemetadata, rmsglobalconfig, regsurf):
 @pytest.fixture(name="edataobj3")
 def fixture_edataobj3(globalconfig1):
     """Combined globalconfig and settings to instance, for internal testing"""
-    # logger.info("Establish edataobj1")
+    # logger.info("Establish edataobj3")
 
-    eobj = ExportData(
-        config=globalconfig1, name="summary", content="timeseries", tagname=""
-    )
+    eobj = ExportData(config=globalconfig1)
 
     return eobj
 
@@ -533,6 +531,23 @@ def fixture_drogon_volumes():
     path = ROOTPWD / "tests/data/drogon/tabular/geogrid--vol.csv"
     table = pa.Table.from_pandas(pd.read_csv(path))
     return table
+
+
+@pytest.fixture(name="drogon_rft")
+def fixture_drogon_rft():
+    """Return pyarrow table
+
+    Returns:
+        pa.Table: table with summary data
+    """
+    path = ROOTPWD / "tests/data/drogon/tabular/drogon--rft.csv"
+    table = pa.Table.from_pandas(pd.read_csv(path))
+    return table
+
+
+@pytest.fixture(name="date_table_selection")
+def _fixture_date_tables(drogon_summary, drogon_rft):
+    return {"summary": drogon_summary, "rft": drogon_rft}
 
 
 # ======================================================================================

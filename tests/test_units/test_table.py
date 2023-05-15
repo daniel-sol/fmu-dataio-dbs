@@ -2,7 +2,6 @@
 """
 from pathlib import Path
 import json
-import pandas as pd
 import pyarrow as pa
 import pytest
 from fmu.dataio import ExportData
@@ -13,7 +12,7 @@ from fmu.dataio._objectdata_provider import _ObjectDataProvider
 def _read_dict(file_path):
     """Reads text file into dictionary
     Args:
-        file_path (string): path to generated file
+        file_path (string): path to input file
     Returns:
         dict: contents of file
     """
@@ -147,7 +146,8 @@ def test_table_index_real_summary(edataobj3, drogon_summary):
 
 def is_jsonable(x):
     # stolen from
-    # https://stackoverflow.com/questions/42033142/is-there-an-easy-way-to-check-if-an-object-is-json-serializable-in-python
+    # https://stackoverflow.com/questions/
+    # 42033142/is-there-an-easy-way-to-check-if-an-object-is-json-serializable-in-python
     try:
         json.dumps(x)
         return True
@@ -155,34 +155,55 @@ def is_jsonable(x):
         return False
 
 
-def test_is_table_index_values_serializable_arrow(edataobj3, drogon_summary):
-    """Test setting of table_index in real summary file
+@pytest.mark.parametrize("table_name", ("summary", "rft"))
+class TestJsonSerializable:
+    def test_is_table_index_values_serializable_arrow(
+        self, date_table_selection, edataobj3, table_name
+    ):
+        """Test setting of table_index in real summary file
 
-    Args:
-        edataobj3 (dict): metadata
-        drogon_summary (pd.Dataframe): dataframe with summary data from sumo
-    """
-    objdata = _ObjectDataProvider(drogon_summary, edataobj3)
-    res = objdata._derive_objectdata()
-    print(res["table_index_values"])
-    assert res["table_index_values"]["DATE"][0] == "2018-01-01"
-    assert is_jsonable(res)
+        Args:
+            edataobj3 (dict): metadata
+            drogon_summary (pd.Dataframe): dataframe with summary data from sumo
+        """
+        obj = date_table_selection[table_name]
+        print(obj)
+        objdata = _ObjectDataProvider(obj, edataobj3)
+        res = objdata._derive_objectdata()
+        print(res["table_index_values"])
+        assert res["table_index_values"]["DATE"][0] == "2018-01-01"
+        assert is_jsonable(res)
 
+    def test_is_table_index_values_serializable_pandas(
+        self, date_table_selection, edataobj3, table_name
+    ):
+        """Test setting of table_index in real summary file
 
-def test_is_table_index_values_serializable_pandas(edataobj3, drogon_summary):
-    """Test setting of table_index in real summary file
+        Args:
+            edataobj3 (dict): metadata
+            drogon_summary (pd.Dataframe): dataframe with summary data from sumo
+        """
+        pandas_obj = date_table_selection[table_name].to_pandas().reset_index()
+        print(pandas_obj)
+        objdata = _ObjectDataProvider(pandas_obj, edataobj3)
+        res = objdata._derive_objectdata()
+        print(res["table_index_values"])
+        assert res["table_index_values"]["DATE"][0] == "2018-01-01"
+        assert is_jsonable(res)
 
-    Args:
-        edataobj3 (dict): metadata
-        drogon_summary (pd.Dataframe): dataframe with summary data from sumo
-    """
-    pandas_summary = drogon_summary.to_pandas().reset_index()
-    print(pandas_summary)
-    objdata = _ObjectDataProvider(pandas_summary, edataobj3)
-    res = objdata._derive_objectdata()
-    print(res["table_index_values"])
-    assert res["table_index_values"]["DATE"][0] == "2018-01-01"
-    assert is_jsonable(res)
+    def test_is_table_index_values_serializable_at_export_pandas(
+        self, date_table_selection, edataobj3, table_name
+    ):
+        """Test setting of table_index in real summary file
+
+        Args:
+            edataobj3 (dict): metadata
+            drogon_summary (pd.Dataframe): dataframe with summary data from sumo
+        """
+        pandas_obj = date_table_selection[table_name].to_pandas().reset_index()
+        print(pandas_obj)
+        out_name = edataobj3.export(pandas_obj, name="drogon", tagname=table_name)
+        print(out_name)
 
 
 def test_table_index_values_real_volumes(edataobj3, drogon_volumes):
@@ -219,4 +240,4 @@ def test_table_index_values_real_volumes(edataobj3, drogon_volumes):
 
     for col_name, answer_list in correct_answers.items():
         index_items = res["table_index_values"][col_name]
-    assert_list_and_answer(index_items, answer_list, col_name)
+        assert_list_and_answer(index_items, answer_list, col_name)
